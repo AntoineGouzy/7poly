@@ -1,10 +1,18 @@
 <script setup>
-import MainMenu from './components/MainMenu.vue'
+import { ref } from "vue";
+import MainMenu from "./components/MainMenu.vue";
+import Game from "./views/Game.vue";
+
+const view = ref("lobby"); // 'lobby' | 'game'
+
+function onStartGame() {
+  view.value = "game";
+}
 </script>
 
 <template>
-  <MainMenu msg="Vite + Vue" />
-  
+  <MainMenu v-if="view === 'lobby'" @start-game="onStartGame" />
+  <Game v-else />
 </template>
 
 <style scoped>
