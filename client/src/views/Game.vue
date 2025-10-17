@@ -4,7 +4,7 @@
       <img src="../assets/7poly.png" alt="7poly" class="logo-small" />
       <div>
         <h1>7poly</h1>
-        <div class="subtitle">La partie a commenc</div>
+        <div class="subtitle">La partie a commence et c'est cool </div>
       </div>
     </header>
   </div>

@@ -11,6 +11,10 @@ let countdownTimer = null;
 let countdownSeconds = 0;
 
 app.io.on("connection", (socket) => {
+  // Relais du soundboard à tous les clients
+  socket.on("soundboard", ({ file }) => {
+    app.io.emit("soundboard", { file });
+  });
   console.log("🟢 Client connecté", socket.id);
   socket.emit("init", slots);
 

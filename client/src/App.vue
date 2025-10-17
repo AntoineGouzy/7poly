@@ -16,7 +16,7 @@ function onStartGame() {
 </template>
 
 <style scoped>
-.logo {
+.logo { 
   height: 6em;
   padding: 1.5em;
   will-change: filter;
