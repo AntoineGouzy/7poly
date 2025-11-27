@@ -13,21 +13,21 @@ const isCorner = computed(() =>
 // Calcul de la rotation de TOUTE la case en fonction de l'orientation
 const rotationStyle = computed(() => {
   switch (props.orientation) {
-    case 'NORTH': return { transform: 'rotate(180deg)' } // Haut du plateau (tête en bas)
-    case 'WEST':  return { transform: 'rotate(90deg)' }  // Gauche (tourné vers la droite)
-    case 'EAST':  return { transform: 'rotate(-90deg)' } // Droite (tourné vers la gauche)
-    case 'SOUTH': return { transform: 'rotate(0deg)' }   // Bas (normal)
+    case 'NORTH': return { transform: 'rotate(0deg)' }
+    case 'WEST':  return { transform: 'rotate(90deg)' }
+    case 'EAST':  return { transform: 'rotate(-90deg)' }
+    case 'SOUTH': return { transform: 'rotate(0deg)' }
     default: return {}
   }
 })
 
-// Angle spécifique pour le texte des coins (inchangé par rapport à ton code)
+// Angle spécifique pour le texte des coins
 function cornerAngle(){
   switch (props.orientation) {
     case 'CORNER_SW': return -45
     case 'CORNER_SE': return 45
-    case 'CORNER_NE': return 135
-    case 'CORNER_NW': return -135
+    case 'CORNER_NE': return -45
+    case 'CORNER_NW': return 45
     default: return 0
   }
 }
@@ -36,7 +36,7 @@ function cornerAngle(){
 <template>
   <div class="tile-wrapper" :style="!isCorner ? rotationStyle : {}">
     
-    <div class="tile" :class="{ corner: isCorner }">
+    <div class="tile" :class="{ corner: isCorner, 'is-north': orientation === 'NORTH'}">
       
       <template v-if="!isCorner">
         <div class="color-bar" :style="{ backgroundColor: color || '#ccc' }"></div>
@@ -84,7 +84,24 @@ function cornerAngle(){
   flex-direction: column; /* Tout s'empile verticalement */
   position: relative;
   overflow: hidden;
-  font-size: 0.65rem; /* Ajuste selon la taille de ton écran */
+  font-size: 0.65rem; /* Ajuste selon la taille de l'écran */
+}
+
+.tile.is-north {
+  flex-direction: column-reverse;
+}
+
+/* 2. On corrige la bordure de la bande de couleur */
+/* Comme la bande est maintenant en bas, la ligne noire doit être au-dessus d'elle */
+.tile.is-north .color-bar {
+  border-bottom: none;       /* On enlève la bordure du bas */
+  border-top: 1px solid #222; /* On la met en haut */
+}
+
+/* 3. Ajustement des marges internes pour l'équilibre */
+.tile.is-north .body {
+  /* Inversement de l'espacement si nécessaire (souvent flex-direction suffit) */
+  justify-content: space-between; 
 }
 
 /* --- Styles pour les Propriétés Standard --- */
