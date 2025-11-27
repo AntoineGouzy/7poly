@@ -39,7 +39,7 @@ function cornerAngle(){
     <div class="tile" :class="{ corner: isCorner, 'is-north': orientation === 'NORTH'}">
       
       <template v-if="!isCorner">
-        <div class="color-bar" :style="{ backgroundColor: color || '#ccc' }"></div>
+        <div v-if="color" class="color-bar" :style="{ backgroundColor: color || '#ccc' }"></div>
 
         <div class="body">
           <div class="name">{{ name }}</div>
@@ -123,6 +123,10 @@ function cornerAngle(){
   align-items: center;            /* Centre tout horizontalement */
   padding: 4px 2px;
   text-align: center;
+}
+
+.body:first-child {
+  padding-top: 30px;
 }
 
 .name {
