@@ -1,73 +1,77 @@
 <template>
   <div class="game-container">
-    <!-- Notifications -->
-    <div class="notifications" v-if="notifications.length">
-      <div v-for="(n, i) in notifications" :key="i">{{ n }}</div>
-    </div>
+    
+    <div class="side-panel left-panel">
+      <div class="timer-card">
+        ⏳ Temps restant : <strong>{{ turnTimeLeft }} s</strong>
+      </div>
 
-    <!-- Timer -->
-    <div class="timer">
-      ⏱ {{ turnTimeLeft }} s
-    </div>
+      <div class="player-card current-player-card">
+        <h3>👤 {{ currentPlayer.name }} (Toi)</h3>
+        <div class="balance">💰 {{ currentPlayer.balance }} $</div>
+        <div class="props-list">
+          🏠 {{ currentPlayer.properties.length ? currentPlayer.properties.join(', ') : 'Aucune propriété' }}
+        </div>
+      </div>
 
-    <!-- Zone principale -->
-    <div class="main-area">
-      <!-- Autres joueurs à gauche -->
-      <div class="other-players">
-        <div
-          v-for="p in otherPlayers"
-          :key="p.id"
-          class="player-card"
-        >
+      <div class="other-players-list">
+        <h4>Adversaires</h4>
+        <div v-for="p in otherPlayers" :key="p.id" class="player-card opponent-card">
           <div class="name">{{ p.name }}</div>
           <div class="balance">💰 {{ p.balance }} $</div>
-          <div class="props">
-            🏠
-            {{ p.properties.length ? p.properties.join(', ') : 'Aucune propriété' }}
+          <div class="props-list">
+            🏠 {{ p.properties.length ? p.properties.join(', ') : 'Aucune' }}
           </div>
-        </div>
-      </div>
-
-      <!-- Plateau et joueur local -->
-      <div class="center-area">
-        <div class="board">
-          🎲 Plateau Monopoly
-        </div>
-
-        <div class="current-player">
-          <div class="name">{{ currentPlayer.name }}</div>
-          <div class="balance">💰 {{ currentPlayer.balance }} $</div>
-          <div class="props">
-            🏠
-            {{ currentPlayer.properties.length ? currentPlayer.properties.join(', ') : 'Aucune propriété' }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Actions à droite -->
-      <div class="actions">
-        <button :disabled="!actions.canRoll" @click="onRoll">🎲 Lancer le dé</button>
-        <button :disabled="!actions.canBuy" @click="onBuy">🏠 Acheter</button>
-        <button :disabled="!actions.canEndTurn" @click="onEndTurn">⏭️ Passer le tour</button>
-        <div v-if="diceResult !== null" class="dice-result">
-          Résultat : {{ diceResult }}
         </div>
       </div>
     </div>
+
+    <div class="center-panel">
+      <div class="board-container">
+        <Board />
+      </div>
+    </div>
+
+    <div class="side-panel right-panel">
+      
+      <div class="notifications-panel">
+        <h4>Journal de bord</h4>
+        <div class="logs-container">
+          <div v-for="(n, i) in notifications" :key="i" class="log-entry">
+            {{ n }}
+          </div>
+        </div>
+      </div>
+
+      <div class="actions-panel">
+        <button :disabled="!actions.canRoll" @click="onRoll" class="action-btn roll">
+          🎲 Lancer le dé
+        </button>
+        <button :disabled="!actions.canBuy" @click="onBuy" class="action-btn buy">
+          🏠 Acheter
+        </button>
+        <button :disabled="!actions.canEndTurn" @click="onEndTurn" class="action-btn end">
+          ⏭️ Passer le tour
+        </button>
+
+        <div v-if="diceResult !== null" class="dice-result">
+          🎲 Résultat : <strong>{{ diceResult }}</strong>
+        </div>        
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import Board from './Board.vue'
 
 const notifications = ref(["La partie commence !"])
 const turnTimeLeft = ref(30)
 
 const currentPlayer = ref({
-  id: 1,
-  name: "Toi",
-  balance: 1500,
-  properties: ["Rue de la Paix"]
+  id: 1, name: "Toi", balance: 1500, properties: ["Rue de la Paix"]
 })
 
 const otherPlayers = ref([
@@ -77,9 +81,7 @@ const otherPlayers = ref([
 ])
 
 const actions = ref({
-  canRoll: true,
-  canBuy: false,
-  canEndTurn: false,
+  canRoll: true, canBuy: false, canEndTurn: false,
 })
 
 const diceResult = ref(null)
@@ -87,9 +89,7 @@ const diceResult = ref(null)
 function onRoll() {
   diceResult.value = Math.floor(Math.random() * 6) + 1
   notifications.value.unshift(`🎲 ${currentPlayer.value.name} a lancé un ${diceResult.value}`)
-  actions.value.canRoll = false
-  actions.value.canBuy = true
-  actions.value.canEndTurn = true
+  actions.value.canRoll = false; actions.value.canBuy = true; actions.value.canEndTurn = true
 }
 
 function onBuy() {
@@ -99,189 +99,165 @@ function onBuy() {
 
 function onEndTurn() {
   notifications.value.unshift(`🔄 ${currentPlayer.value.name} a terminé son tour`)
-  actions.value.canRoll = true
-  actions.value.canEndTurn = false
-  diceResult.value = null
+  actions.value.canRoll = true; actions.value.canEndTurn = false; diceResult.value = null
 }
 </script>
 
 <style scoped>
-/* Remplir tout l’écran */
+/* Conteneur global */
 .game-container {
-  position: fixed;
-  top: 0;
-  left: 0;
+  display: flex;
+  flex-direction: row;
   height: 100vh;
   width: 100vw;
-  background: #f0f0f0;
+  background: #f0f2f5;
+  font-family: 'Segoe UI', sans-serif;
   overflow: hidden;
+  color: #1f2937; 
+}
+
+/* --- Styles Généraux des Panneaux --- */
+.side-panel {
+  flex: 0 0 auto;
+  width: 280px;
+  min-width: 250px;
+  max-width: 320px;
+  
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  color: #111; /* couleur texte par défaut */
-}
-
-/* Notifications centrées en haut */
-.notifications {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
+  gap: 20px;
+  
   background: #ffffff;
-  color: #111111;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-weight: bold;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  border: 1px solid #ddd;
-
-  /* Limite de taille pour ne pas dépasser le plateau */
-  max-width: 80%;      /* largeur max de la bannière */
-  max-height: 120px;   /* hauteur max */
-  overflow-y: auto;    /* scroll vertical si beaucoup de notifications */
-  text-align: center;
+  color: #1f2937; 
+  
+  box-shadow: 0 0 15px rgba(0,0,0,0.05);
+  z-index: 2;
+  overflow-y: auto;
+  height: 100%;
 }
 
-/* Timer en haut à gauche */
-.timer {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: #ffffff;
-  color: #111111;
-  padding: 8px 12px;
-  border-radius: 6px;
-  box-shadow: 0 0 4px rgba(0,0,0,0.2);
-  font-weight: bold;
-  border: 1px solid #ddd;
-}
+.left-panel { border-right: 1px solid #ddd; }
+.right-panel { border-left: 1px solid #ddd; }
 
-/* Conteneur principal */
-.main-area {
+/* --- Colonne CENTRALE --- */
+.center-panel {
   flex: 1;
   display: flex;
-  height: 100%;
-  align-items: center;
-  justify-content: space-around;
-}
-
-/* Colonne des autres joueurs */
-.other-players {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 16px;
-  height: 100%;
-  padding-left: 20px;
-}
-
-/* Zone centrale */
-.center-area {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-grow: 1;
+  background-color: #e5e7eb;
+  padding: 20px;
+  overflow: hidden;
+  position: relative;
+  min-width: 0;
 }
 
-/* Plateau */
-.board {
-  width: 40vh;
-  height: 40vh;
-  background: #4caf50;
-  color: white; /* lisible sur fond vert */
+.board-container {
+  max-width: 95%;
+  max-height: 95%;
+  aspect-ratio: 1 / 1;
   display: flex;
-  align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
-  font-weight: bold;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-  text-shadow: 0 0 4px rgba(0,0,0,0.4);
+  align-items: center;
 }
 
-/* Joueur local tout en bas */
-.current-player {
-  position: absolute;   /* fixe en bas de l’écran */
-  bottom: 16px;         /* petit espace depuis le bas */
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffffff;
-  color: #111111;
-  padding: 12px 16px;
+/* --- Elements des panneaux --- */
+.timer-card {
+  background: #fff0cce0;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  padding: 15px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  width: 50%;           /* largeur du panneau */
   text-align: center;
-  border: 1px solid #ddd;
-  z-index: 10;          /* toujours au-dessus des autres éléments */
+  font-size: 1.1rem;
 }
 
-/* Zone d’actions à droite */
-.actions {
+.current-player-card {
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
+  padding: 15px;
+  border-radius: 10px;
+  color: #1e3a8a;
+}
+.current-player-card h3 { margin: 0 0 10px 0; color: #1e40af; font-size: 1.1rem;}
+
+.other-players-list {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 10px;
+}
+.other-players-list h4 { margin: 0 0 10px 0; color: #64748b; }
+
+.player-card {
+  background: white;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  color: #334155;
+}
+.opponent-card { background: #f8fafc; }
+
+.balance { font-weight: bold; color: #059669; margin: 5px 0; }
+.props-list { font-size: 0.8rem; color: #475569; }
+
+/* --- Panneau de Droite --- */
+.notifications-panel {
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+.notifications-panel h4 { margin: 0 0 10px 0; color: #64748b; }
+
+.logs-container {
+  flex: 1;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+  color: #334155;
+}
+.log-entry {
+  padding: 6px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.actions-panel {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  height: 100%;
-  padding-right: 20px;
-}
-
-.actions button {
-  padding: 10px 14px;
-  border-radius: 6px;
-  border: none;
-  background: #3b82f6;
-  color: #ffffff;
-  font-weight: bold;
-  cursor: pointer;
-  width: 160px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
-
-.actions button:hover {
-  background: #2563eb;
-}
-
-.actions button:disabled {
-  background: #cbd5e1;
-  color: #555;
-  cursor: not-allowed;
+  margin-top: 20px;
 }
 
 .dice-result {
-  font-weight: bold;
-  background: #ffffff;
-  color: #111111;
-  padding: 8px 12px;
-  border-radius: 6px;
-  box-shadow: 0 0 4px rgba(0,0,0,0.1);
   text-align: center;
-  border: 1px solid #ddd;
-}
-
-/* Cartes des autres joueurs */
-.player-card {
-  background: #ffffff;
-  color: #111111;
-  padding: 8px 12px;
+  font-size: 1.2rem;
+  padding: 10px;
+  background: #fff;
+  border: 2px dashed #94a3b8;
   border-radius: 8px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.2);
-  width: 180px;
-  text-align: left;
-  border: 1px solid #ddd;
+  color: #333;
+  margin-bottom: 10px;
 }
-.player-card .name {
-  font-weight: bold;
-  color: #0f172a;
-}
-.player-card .balance {
-  font-size: 0.9rem;
-  color: #1e293b;
-}
-.player-card .props {
-  font-size: 0.85rem;
-  color: #374151;
-}
-</style>
 
+.action-btn {
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+  transition: opacity 0.2s;
+}
+.action-btn:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+.action-btn:hover:not(:disabled) { opacity: 0.9; }
+
+.roll { background: #3b82f6; }
+.buy { background: #10b981; }
+.end { background: #ef4444; }
+</style>
