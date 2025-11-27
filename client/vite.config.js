@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
@@ -14,9 +15,15 @@ export default defineConfig({
       ws: true,
       changeOrigin: true,
       secure: true,
+      }
     }
-  }
   // close server object
-},
+  },
+  resolve: {
+      alias: {
+        // C'est cette ligne qui fait fonctionner le @
+        '@': fileURLToPath(new URL('./src', import.meta.url))
+      }
+  }
 // close config object
 })
