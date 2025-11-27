@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum TileType {
+  GO
+  PROPERTY
+  RAILROAD
+  UTILITY
+  TAX
+  CHANCE
+  COMMUNITY
+  JAIL
+  FREE_PARKING
+  GO_TO_JAIL
+}
+
+enum TileOrientation {
+  NORTH
+  SOUTH
+  EAST
+  WEST
+  CORNER_SW
+  CORNER_NW
+  CORNER_NE
+  CORNER_SE
+}
+
+model Tile {
+  id          String           @id @default(cuid())
+  index       Int              @unique
+  name        String
+  type        TileType
+  price       Int?
+  color       String?
+  image       String?
+  orientation TileOrientation  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+

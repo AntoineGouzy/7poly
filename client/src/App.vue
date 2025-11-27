@@ -1,17 +1,12 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import Tile from "./components/Tile.vue";
+import Board from "./components/Board.vue";
+
+const imgPortail = new URL('./assets/tiles/portail_hallc.jpg', import.meta.url).href
 </script>
 
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
+  <Board />
 </template>
 
 <style scoped>
