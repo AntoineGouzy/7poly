@@ -15,13 +15,6 @@ export default defineConfig({
       ws: true,
       changeOrigin: true,
       secure: true,
-      },
-      // Proxy Socket.IO websocket requests to backend during dev
-      "/socket.io": {
-        target: "http://localhost:3000",
-        ws: true,
-        changeOrigin: true,
-        secure: false,
       }
     }
   // close server object

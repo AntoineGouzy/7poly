@@ -1,11 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { io } from 'socket.io-client'
 import Tile from './Tile.vue'
-
-const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:3001', {
-  transports: ['websocket']
-})
+import socket from "../useSocket";
 
 const tiles = ref([])
 

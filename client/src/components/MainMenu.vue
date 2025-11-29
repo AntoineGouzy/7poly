@@ -11,7 +11,7 @@ const countdown = ref(0);
 
 const joinSlot = (index) => {
   if (!slots.value[index] && myName.value) {
-    socket.emit("join", { name: myName.value, index });
+    socket.emit("lobby:join", { name: myName.value, index });
     try {
       localStorage.setItem("playerName", myName.value);
     } catch (e) {}
@@ -21,7 +21,7 @@ const joinSlot = (index) => {
 const leaveSlot = (index) => {
   const player = slots.value[index];
   if (player?.name === myName.value) {
-    socket.emit("leave", { name: myName.value, index });
+    socket.emit("lobby:leave", { name: myName.value, index });
     try {
       localStorage.removeItem("playerName");
     } catch (e) {}
@@ -35,16 +35,16 @@ const avatarColor = (name, idx) => {
 };
 
 onMounted(() => {
-  socket.on("init", (s) => (slots.value = s));
-  socket.on("update", (s) => (slots.value = s));
+  socket.on("lobby:init", (s) => (slots.value = s));
+  socket.on("lobby:update", (s) => (slots.value = s));
   socket.on("connected", (id) => console.log("connected", id));
 
-  socket.on("countdown", ({ seconds } = {}) => {
+  socket.on("lobby:countdown", ({ seconds } = {}) => {
     if (typeof seconds === "number") countdown.value = seconds;
   });
 
   // When server signals begin, play confetti + sound then start the game
-  socket.on("begin", () => {
+  socket.on("game:begin", () => {
     try {
       playStartSound();
     } catch (e) {
@@ -57,7 +57,7 @@ onMounted(() => {
     setTimeout(() => emit("start-game"), 550);
   });
 
-  socket.on("countdown-cancel", () => (countdown.value = 0));
+  socket.on("lobby:countdown-cancel", () => (countdown.value = 0));
 });
 
 // --- Confetti and sound helpers (no external deps) ---
