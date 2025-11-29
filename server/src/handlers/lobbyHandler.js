@@ -5,10 +5,7 @@ let gameStarted = false;
 let countdownTimer = null;
 let countdownSeconds = 0;
 
-function getRandomColor() {
-  const colors = ["red", "blue", "green", "yellow", "purple", "orange"];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
+const fixedColors = ["#2b8aef", "#ef4444", "#10b981", "#f59e0b"];
 
 export default (io, socket) => {
   // --- Événements ---
@@ -26,7 +23,7 @@ export default (io, socket) => {
         id: socket.id,
         name,
         ready: false,
-        color: getRandomColor(),
+        color: fixedColors[index] || "#ccc",
         score: 0,
       };
       
@@ -49,8 +46,10 @@ export default (io, socket) => {
           } else {
             clearInterval(countdownTimer);
             countdownTimer = null;
-            console.log("🚀 Lancement de la partie !");
-            io.emit("game:begin"); 
+            const activePlayers = slots.filter(s => s !== null);
+            console.log("Lancement de la partie avec :", activePlayers.map(p => p.name));
+            io.emit("game:start", activePlayers);
+            io.emit("game:begin");
           }
         }, 1000);
       }

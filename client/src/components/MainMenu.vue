@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from "vue";
-import socket from "../useSocket";
+
+const props = defineProps(['socket'])
+const socket = props.socket
 
 const emit = defineEmits(["start-game"]);
 

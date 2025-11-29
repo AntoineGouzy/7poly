@@ -1,7 +1,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import Tile from './Tile.vue'
-import socket from "../useSocket";
+
+const props = defineProps(['socket'])
+const socket = props.socket
 
 const tiles = ref([])
 

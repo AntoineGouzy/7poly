@@ -1,3 +1,97 @@
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue' // <--- Ajout de onUnmounted
+import Board from './Board.vue'
+
+// On reçoit le socket et la liste des joueurs depuis App.vue
+const props = defineProps(['socket', 'initialPlayers'])
+const socket = props.socket 
+
+const notifications = ref(["🎮 La partie commence !"])
+
+const turnTimeLeft = ref(30)
+const diceResult = ref(null)
+const actions = ref({
+  canRoll: true,
+  canBuy: false,
+  canEndTurn: false
+})
+
+// --- Initialisation avec les props ---
+const currentPlayer = ref({
+  id: null,
+  name: 'Chargement...',
+  color: '#ccc',
+  balance: 0,
+  properties: []
+})
+const otherPlayers = ref([])
+
+// Fonction d'init appelée au montage
+function initGame() {
+  const players = props.initialPlayers || []
+
+  let myStoredName = null
+  try {
+    myStoredName = localStorage.getItem("playerName")
+  } catch (e) {
+    console.warn("Impossible de lire le localStorage")
+  }
+
+  const myPlayer = players.find(p => p.id === socket.id || p.name === myStoredName)
+  const others = players.filter(p => myPlayer && p.id !== myPlayer.id)
+  if (myPlayer) {
+    currentPlayer.value = {
+      ...myPlayer,
+      balance: 1500,
+      properties: []
+    }
+  }
+
+  otherPlayers.value = others.map(p => ({
+    ...p,
+    balance: 1500,
+    properties: []
+  }))
+}
+
+onMounted(() => {
+  initGame()
+})
+
+onUnmounted(() => {
+  // Rien à nettoyer pour l'instant
+})
+
+// --- Méthodes d'action ---
+function onRoll() {
+  diceResult.value = Math.floor(Math.random() * 6) + 1
+  notifications.value.unshift(`🎲 ${currentPlayer.value.name} a lancé un ${diceResult.value}`)
+  
+  // Mise à jour de l'état des boutons
+  actions.value.canRoll = false
+  actions.value.canBuy = true
+  actions.value.canEndTurn = true
+  
+  // TODO: socket.emit('action:roll')
+}
+
+function onBuy() {
+  notifications.value.unshift(`💰 ${currentPlayer.value.name} a acheté une propriété`)
+  actions.value.canBuy = false
+  // TODO: socket.emit('action:buy')
+}
+
+function onEndTurn() {
+  notifications.value.unshift(`🔄 ${currentPlayer.value.name} a terminé son tour`)
+  
+  // Reset pour le tour suivant (simulation)
+  actions.value.canRoll = true
+  actions.value.canEndTurn = false
+  diceResult.value = null
+  // TODO: socket.emit('action:endTurn')
+}
+</script>
+
 <template>
   <div class="game-container">
     
@@ -6,7 +100,7 @@
         ⏳ Temps restant : <strong>{{ turnTimeLeft }} s</strong>
       </div>
 
-      <div class="player-card current-player-card">
+      <div class="player-card current-player-card" :style="{ borderTop: `4px solid ${currentPlayer.color}` }">
         <h3>👤 {{ currentPlayer.name }} (Toi)</h3>
         <div class="balance">💰 {{ currentPlayer.balance }} $</div>
         <div class="props-list">
@@ -16,7 +110,7 @@
 
       <div class="other-players-list">
         <h4>Adversaires</h4>
-        <div v-for="p in otherPlayers" :key="p.id" class="player-card opponent-card">
+        <div v-for="p in otherPlayers" :key="p.id" class="player-card opponent-card" :style="{ borderTop: `4px solid ${p.color}` }">
           <div class="name">{{ p.name }}</div>
           <div class="balance">💰 {{ p.balance }} $</div>
           <div class="props-list">
@@ -28,7 +122,7 @@
 
     <div class="center-panel">
       <div class="board-container">
-        <Board />
+        <Board :socket="socket"/>
       </div>
     </div>
 
@@ -62,46 +156,6 @@
 
   </div>
 </template>
-
-<script setup>
-import { ref } from 'vue'
-import Board from './Board.vue'
-
-const notifications = ref(["La partie commence !"])
-const turnTimeLeft = ref(30)
-
-const currentPlayer = ref({
-  id: 1, name: "Toi", balance: 1500, properties: ["Rue de la Paix"]
-})
-
-const otherPlayers = ref([
-  { id: 2, name: "Alice", balance: 1300, properties: ["Avenue Foch"] },
-  { id: 3, name: "Bob", balance: 900, properties: [] },
-  { id: 4, name: "Charlie", balance: 1100, properties: ["Boulevard St-Michel"] }
-])
-
-const actions = ref({
-  canRoll: true, canBuy: false, canEndTurn: false,
-})
-
-const diceResult = ref(null)
-
-function onRoll() {
-  diceResult.value = Math.floor(Math.random() * 6) + 1
-  notifications.value.unshift(`🎲 ${currentPlayer.value.name} a lancé un ${diceResult.value}`)
-  actions.value.canRoll = false; actions.value.canBuy = true; actions.value.canEndTurn = true
-}
-
-function onBuy() {
-  notifications.value.unshift(`💰 ${currentPlayer.value.name} a acheté une propriété`)
-  actions.value.canBuy = false
-}
-
-function onEndTurn() {
-  notifications.value.unshift(`🔄 ${currentPlayer.value.name} a terminé son tour`)
-  actions.value.canRoll = true; actions.value.canEndTurn = false; diceResult.value = null
-}
-</script>
 
 <style scoped>
 /* Conteneur global */
