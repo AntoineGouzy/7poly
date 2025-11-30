@@ -1,94 +1,125 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue' // <--- Ajout de onUnmounted
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import Board from './Board.vue'
 
-// On reçoit le socket et la liste des joueurs depuis App.vue
 const props = defineProps(['socket', 'initialPlayers'])
 const socket = props.socket 
 
 const notifications = ref(["🎮 La partie commence !"])
 
+
 const turnTimeLeft = ref(30)
 const diceResult = ref(null)
+const currentTurnPlayerId = ref(null)
 const actions = ref({
-  canRoll: true,
+  canRoll: false,
   canBuy: false,
   canEndTurn: false
 })
 
-// --- Initialisation avec les props ---
-const currentPlayer = ref({
-  id: null,
-  name: 'Chargement...',
-  color: '#ccc',
-  balance: 0,
-  properties: []
-})
-const otherPlayers = ref([])
+// 'allPlayers' est la source de vérité pour les positions et les soldes
+const allPlayers = ref([])
 
-// Fonction d'init appelée au montage
+// Timer local pour l'affichage
+let timerInterval = null
+
+// --- Initialisation ---
 function initGame() {
   const players = props.initialPlayers || []
-
-  let myStoredName = null
-  try {
-    myStoredName = localStorage.getItem("playerName")
-  } catch (e) {
-    console.warn("Impossible de lire le localStorage")
-  }
-
-  const myPlayer = players.find(p => p.id === socket.id || p.name === myStoredName)
-  const others = players.filter(p => myPlayer && p.id !== myPlayer.id)
-  if (myPlayer) {
-    currentPlayer.value = {
-      ...myPlayer,
-      balance: 1500,
-      properties: []
-    }
-  }
-
-  otherPlayers.value = others.map(p => ({
-    ...p,
+  
+  allPlayers.value = players.map(p => ({ 
+    ...p, 
+    position: p.position || 0,
     balance: 1500,
     properties: []
   }))
 }
 
+const currentPlayer = computed(() => {
+  let myStoredName = null
+  try { myStoredName = localStorage.getItem("playerName") } catch (e) {}
+  
+  return allPlayers.value.find(p => p.id === socket.id || (myStoredName && p.name === myStoredName)) 
+         || { id: null, name: 'Spectateur', color: '#ccc', balance: 0, properties: [] }
+})
+
+const otherPlayers = computed(() => 
+  allPlayers.value.filter(p => p.id !== currentPlayer.value.id)
+)
+
 onMounted(() => {
   initGame()
+
+  socket.on('game:turn_change', ({ currentPlayerId, timeLeft }) => {
+    currentTurnPlayerId.value = currentPlayerId
+    turnTimeLeft.value = timeLeft
+    
+    // Reset du timer visuel
+    if (timerInterval) clearInterval(timerInterval)
+    timerInterval = setInterval(() => {
+      if (turnTimeLeft.value > 0) turnTimeLeft.value--
+    }, 1000)
+
+    // Gestion des droits
+    const isMyTurn = (currentPlayer.value.id === currentPlayerId)
+    const activePlayerName = allPlayers.value.find(p => p.id === currentPlayerId)?.name || '?'
+
+    if (isMyTurn) {
+      notifications.value.unshift(`🟢 C'est à toi de jouer !`)
+      // On active le dé, on désactive la fin de tour tant qu'on n'a pas joué
+      actions.value.canRoll = true
+      actions.value.canEndTurn = false
+      actions.value.canBuy = false
+    } else {
+      notifications.value.unshift(`⏳ C'est au tour de ${activePlayerName}`)
+      actions.value.canRoll = false
+      actions.value.canEndTurn = false
+      actions.value.canBuy = false
+    }
+  })
+
+  socket.on('game:moved', ({ playerId, newPosition, diceResult: dices }) => {
+    const pIndex = allPlayers.value.findIndex(p => p.id === playerId)
+    
+    if (pIndex !== -1) {
+      const player = allPlayers.value[pIndex]
+      player.position = newPosition
+      
+      notifications.value.unshift(`🎲 ${player.name} a fait ${dices[0]}+${dices[1]} et avance case ${newPosition}`)
+      
+      // Affichage visuel du dé
+      diceResult.value = dices[0] + dices[1]
+
+      // Si c'est moi qui ai bougé, je peux finir mon tour
+      if (currentPlayer.value.id === playerId) {
+        actions.value.canRoll = false
+        actions.value.canEndTurn = true
+        // actions.value.canBuy = true; Logique d'achat future
+      }
+    }
+  })
 })
 
 onUnmounted(() => {
-  // Rien à nettoyer pour l'instant
+  if (timerInterval) clearInterval(timerInterval)
+  socket.off('game:turn_change')
+  socket.off('game:moved')
 })
 
 // --- Méthodes d'action ---
 function onRoll() {
-  diceResult.value = Math.floor(Math.random() * 6) + 1
-  notifications.value.unshift(`🎲 ${currentPlayer.value.name} a lancé un ${diceResult.value}`)
-  
-  // Mise à jour de l'état des boutons
-  actions.value.canRoll = false
-  actions.value.canBuy = true
-  actions.value.canEndTurn = true
-  
-  // TODO: socket.emit('action:roll')
+  // On demande au serveur de lancer les dés
+  socket.emit('action:roll')
 }
 
 function onBuy() {
-  notifications.value.unshift(`💰 ${currentPlayer.value.name} a acheté une propriété`)
-  actions.value.canBuy = false
-  // TODO: socket.emit('action:buy')
+  // socket.emit('action:buy')
+  notifications.value.unshift("Achat pas encore implémenté")
 }
 
 function onEndTurn() {
-  notifications.value.unshift(`🔄 ${currentPlayer.value.name} a terminé son tour`)
-  
-  // Reset pour le tour suivant (simulation)
-  actions.value.canRoll = true
-  actions.value.canEndTurn = false
-  diceResult.value = null
-  // TODO: socket.emit('action:endTurn')
+  socket.emit('action:endTurn')
+  notifications.value.unshift("Fin du tour envoyée...")
 }
 </script>
 
@@ -96,25 +127,36 @@ function onEndTurn() {
   <div class="game-container">
     
     <div class="side-panel left-panel">
-      <div class="timer-card">
+      <div class="timer-card" :class="{ 'urgent': turnTimeLeft < 10 }">
         ⏳ Temps restant : <strong>{{ turnTimeLeft }} s</strong>
       </div>
 
-      <div class="player-card current-player-card" :style="{ borderTop: `4px solid ${currentPlayer.color}` }">
+      <div v-if="currentPlayer.id" 
+           class="player-card current-player-card" 
+           :class="{ 'active-turn': currentTurnPlayerId === currentPlayer.id }"
+           :style="{ borderTop: `4px solid ${currentPlayer.color}` }">
         <h3>👤 {{ currentPlayer.name }} (Toi)</h3>
         <div class="balance">💰 {{ currentPlayer.balance }} $</div>
         <div class="props-list">
+          <small>Case: {{ currentPlayer.position }}</small><br>
           🏠 {{ currentPlayer.properties.length ? currentPlayer.properties.join(', ') : 'Aucune propriété' }}
         </div>
       </div>
+      <div v-else class="player-card">Chargement...</div>
 
       <div class="other-players-list">
         <h4>Adversaires</h4>
-        <div v-for="p in otherPlayers" :key="p.id" class="player-card opponent-card" :style="{ borderTop: `4px solid ${p.color}` }">
-          <div class="name">{{ p.name }}</div>
+        <div v-for="p in otherPlayers" :key="p.id" 
+             class="player-card opponent-card" 
+             :class="{ 'active-turn': currentTurnPlayerId === p.id }"
+             :style="{ borderTop: `4px solid ${p.color}` }">
+          <div class="name">
+            {{ p.name }} 
+            <span v-if="currentTurnPlayerId === p.id">🎲</span>
+          </div>
           <div class="balance">💰 {{ p.balance }} $</div>
           <div class="props-list">
-            🏠 {{ p.properties.length ? p.properties.join(', ') : 'Aucune' }}
+            <small>Case: {{ p.position }}</small>
           </div>
         </div>
       </div>
@@ -122,7 +164,7 @@ function onEndTurn() {
 
     <div class="center-panel">
       <div class="board-container">
-        <Board :socket="socket"/>
+        <Board :socket="socket" :players="allPlayers"/>
       </div>
     </div>
 
@@ -139,7 +181,7 @@ function onEndTurn() {
 
       <div class="actions-panel">
         <button :disabled="!actions.canRoll" @click="onRoll" class="action-btn roll">
-          🎲 Lancer le dé
+          🎲 Lancer les dés
         </button>
         <button :disabled="!actions.canBuy" @click="onBuy" class="action-btn buy">
           🏠 Acheter
@@ -176,15 +218,12 @@ function onEndTurn() {
   width: 280px;
   min-width: 250px;
   max-width: 320px;
-  
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  
   background: #ffffff;
   color: #1f2937; 
-  
   box-shadow: 0 0 15px rgba(0,0,0,0.05);
   z-index: 2;
   overflow-y: auto;
@@ -225,6 +264,13 @@ function onEndTurn() {
   border-radius: 8px;
   text-align: center;
   font-size: 1.1rem;
+  transition: all 0.3s;
+}
+.timer-card.urgent {
+  color: #ef4444;
+  border-color: #ef4444;
+  font-weight: bold;
+  animation: pulse 1s infinite;
 }
 
 .current-player-card {
@@ -233,6 +279,7 @@ function onEndTurn() {
   padding: 15px;
   border-radius: 10px;
   color: #1e3a8a;
+  transition: transform 0.3s, box-shadow 0.3s;
 }
 .current-player-card h3 { margin: 0 0 10px 0; color: #1e40af; font-size: 1.1rem;}
 
@@ -252,8 +299,30 @@ function onEndTurn() {
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   color: #334155;
+  transition: transform 0.3s, box-shadow 0.3s;
 }
 .opponent-card { background: #f8fafc; }
+
+/* Style pour mettre en évidence le joueur actif */
+.active-turn {
+  transform: none;
+  width: auto;
+  margin-left: 10px;
+  margin-right: 10px;
+  box-sizing: border-box; 
+  z-index: 20;
+  box-shadow: 
+    0 0 0 3px #ffffff, 
+    0 0 0 8px #1f2937, 
+    0 8px 20px rgba(0,0,0,0.25);
+  transition: all 0.3s ease;
+  background-color: #ffffff; 
+  border-radius: 8px; 
+}
+.active-turn .name {
+  font-weight: 900;
+  color: #111;
+}
 
 .balance { font-weight: bold; color: #059669; margin: 5px 0; }
 .props-list { font-size: 0.8rem; color: #475569; }
@@ -306,7 +375,7 @@ function onEndTurn() {
   font-weight: bold;
   cursor: pointer;
   color: white;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, background-color 0.2s;
 }
 .action-btn:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
 .action-btn:hover:not(:disabled) { opacity: 0.9; }
@@ -314,4 +383,10 @@ function onEndTurn() {
 .roll { background: #3b82f6; }
 .buy { background: #10b981; }
 .end { background: #ef4444; }
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
 </style>

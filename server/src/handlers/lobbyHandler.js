@@ -1,4 +1,6 @@
-// État global du Lobby (gardé en mémoire)
+import { startGame } from './gameHandler.js';
+
+// État global du Lobby
 const maxPlayers = 4;
 let slots = Array(maxPlayers).fill(null);
 let gameStarted = false;
@@ -47,6 +49,7 @@ export default (io, socket) => {
             clearInterval(countdownTimer);
             countdownTimer = null;
             const activePlayers = slots.filter(s => s !== null);
+            startGame(io, activePlayers);
             console.log("Lancement de la partie avec :", activePlayers.map(p => p.name));
             io.emit("game:start", activePlayers);
             io.emit("game:begin");

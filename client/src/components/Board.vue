@@ -2,21 +2,25 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import Tile from './Tile.vue'
 
-const props = defineProps(['socket'])
+const props = defineProps(['socket', 'players']) 
 const socket = props.socket
 
 const tiles = ref([])
 
 onMounted(() => {
-  socket.on('tiles:data', (data) => {
-    tiles.value = (data || []).sort((a, b) => a.index - b.index)
-  })
-  socket.emit('tiles:fetch')
+  if (socket) {
+    socket.on('tiles:data', (data) => {
+      tiles.value = (data || []).sort((a, b) => a.index - b.index)
+    })
+    socket.emit('tiles:fetch')
+  }
 })
 
-onUnmounted(() => socket.off('tiles:data'))
+onUnmounted(() => {
+  if (socket) socket.off('tiles:data')
+})
 
-// 📍 Positionnement des cases dans une grille 11x11
+// Positionnement des cases sur la grille 11x11
 const SIDE = 11
 function gridPos(i) {
   if (i === 0)  return { row: SIDE, col: SIDE }
@@ -28,52 +32,72 @@ function gridPos(i) {
   if (i >= 21 && i <= 29) return { row: 1, col: 1 + (i - 20) }
   return { row: 1 + (i - 30), col: SIDE }
 }
+
+// Petit décalage pour que les pions ne se superposent pas parfaitement
+function getPawnOffset(playerIndex) {
+  const offsets = [
+    { x: -5, y: -5 },
+    { x: 5, y: -5 },
+    { x: -5, y: 5 },
+    { x: 5, y: 5 }
+  ];
+  return offsets[playerIndex % 4];
+}
 </script>
 
 <template>
-  <div class="board" v-if="tiles.length">
-    <Tile
-      v-for="t in tiles"
-      :key="t.id"
-      :index="t.index"
-      :name="t.name"
-      :price="t.price"
-      :color="t.color"
-      :type="t.type"
-      :image="t.image"
-      :orientation="t.orientation"
-      :style="{ 
-        gridRow: gridPos(t.index).row,
-        gridColumn: gridPos(t.index).col 
-      }"
-    />
-    <div class="center">
-      
-      <div class="deck-slot community-chest">
-        <div class="deck-border">
-          <div class="label">Foyer des<br>étudiants</div>
-          <div class="icon-box blue-icon"></div>
+  <div class="board-wrapper">
+    <div class="board" v-if="tiles.length">
+      <Tile
+        v-for="t in tiles"
+        :key="t.id"
+        :index="t.index"
+        :name="t.name"
+        :price="t.price"
+        :color="t.color"
+        :orientation="t.orientation"
+        :image="t.image"
+        :style="{ 
+          gridRow: gridPos(t.index).row,
+          gridColumn: gridPos(t.index).col 
+        }"
+      />
+
+      <div class="center">
+        <div class="logo-container">
+           <img src="@/assets/7poly.png" alt="Logo" class="img-logo" />
         </div>
       </div>
 
-      <div class="logo-container">
-        <img src="@/assets/7poly.png" alt="Logo 7Poly" class="img-logo" />
-      </div>
-
-      <div class="deck-slot chance">
-        <div class="deck-border">
-          <div class="label">Churros</div>
-          <div class="icon-box orange-icon">?</div>
+      <div class="pawns-overlay">
+        <div 
+          v-for="(p, idx) in players" 
+          :key="p.id"
+          class="pawn"
+          :style="{
+            backgroundColor: p.color,
+            gridRow: gridPos(p.position).row,
+            gridColumn: gridPos(p.position).col,
+            transform: `translate(${getPawnOffset(idx).x}px, ${getPawnOffset(idx).y}px)`
+          }"
+        >
+          {{ p.name.charAt(0) }}
         </div>
       </div>
-      
+
     </div>
+    <div v-else class="loading">Chargement du plateau...</div>
   </div>
-
-  <div v-else class="loading">Chargement du plateau…</div>
 </template>
 
 <style scoped>
+.board-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%; height: 100%;
+}
+
 .board {
   width: min(100vmin, 1200px); /* Plateau large et carré */
   aspect-ratio: 1 / 1;
@@ -89,6 +113,37 @@ function gridPos(i) {
   padding: 10px;
   box-sizing: border-box;
   margin: 0 auto;
+  position: relative;
+}
+
+.pawns-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  grid-template-rows: repeat(11, 1fr);
+  pointer-events: none; /* Laisse passer les clics vers les cases */
+  z-index: 10;
+}
+
+.pawn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  font-size: 0.7rem;
+  margin: auto; /* Centre dans la cellule de la grille */
+  
+  /* Animation fluide lors du changement de grid-row/col */
+  transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  z-index: 20;
 }
 
 /* Zone centrale (vide) */
