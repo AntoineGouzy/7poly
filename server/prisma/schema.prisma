@@ -37,6 +37,7 @@ model Tile {
   name        String
   type        TileType
   price       Int?
+  rent        Int?
   color       String?
   image       String?
   orientation TileOrientation  

@@ -17,6 +17,8 @@ const actions = ref({
   canEndTurn: false
 })
 
+const currentBuyOffer = ref(null); // Stocke l'info si on peut acheter
+
 // 'allPlayers' est la source de vérité pour les positions et les soldes
 const allPlayers = ref([])
 
@@ -78,6 +80,28 @@ onMounted(() => {
     }
   })
 
+  // Ecoute mise à jour globale des joueurs (après achat ou loyer)
+  socket.on('game:init_state', (playersData) => {
+     allPlayers.value = playersData;
+  });
+
+  // Ecoute notification texte
+  socket.on('game:notification', (message) => {
+     notifications.value.unshift(message);
+  });
+
+  // Ecoute permission d'acheter
+  socket.on('game:allow_buy', (offer) => {
+     currentBuyOffer.value = offer; // { tileIndex, price, name }
+     actions.value.canBuy = true;
+     notifications.value.unshift(`❓ Voulez-vous acheter ${offer.name} pour ${offer.price}$ ?`);
+  });
+  
+  socket.on('game:buy_success', () => {
+     actions.value.canBuy = false;
+     currentBuyOffer.value = null;
+  });
+
   socket.on('game:moved', ({ playerId, newPosition, diceResult: dices }) => {
     const pIndex = allPlayers.value.findIndex(p => p.id === playerId)
     
@@ -97,6 +121,15 @@ onMounted(() => {
         // actions.value.canBuy = true; Logique d'achat future
       }
     }
+
+    // Reset le bouton acheter quand on bouge (pour le tour suivant ou autre)
+    if (currentPlayer.value.id === playerId) {
+      actions.value.canRoll = false;
+      actions.value.canEndTurn = true;
+      // On attend l'event 'game:allow_buy' pour activer canBuy, 
+      // donc on le met à false par défaut ici
+      actions.value.canBuy = false; 
+    }
   })
 })
 
@@ -113,8 +146,8 @@ function onRoll() {
 }
 
 function onBuy() {
-  // socket.emit('action:buy')
-  notifications.value.unshift("Achat pas encore implémenté")
+  if(!currentBuyOffer.value) return;
+  socket.emit('action:buy');
 }
 
 function onEndTurn() {

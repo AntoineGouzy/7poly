@@ -8,6 +8,9 @@ let gameState = {
   hasRolled: false // Pour savoir si le joueur a déjà lancé les dés ce tour-ci
 };
 
+// Stockage en mémoire des infos des cases (prix, loyer)
+let boardTiles = [];
+
 const BOARD_SIZE = 40; 
 
 // Lancer les dés et déplacer le joueur)
@@ -27,7 +30,44 @@ function performDiceRoll(io, player) {
         diceResult: [die1, die2]
     });
 
+    handleLanding(io, player);
+
     return total; // On retourne le total pour vérifier des doubles plus tard (sortir de prison)
+}
+
+// Fonction pour gérer l'arrivée sur une case
+function handleLanding(io, player) {
+    const currentTile = boardTiles.find(t => t.index === player.position);
+    if (!currentTile) return;
+
+    // 1. Chercher si la case appartient déjà à quelqu'un
+    const owner = gameState.players.find(p => p.properties.includes(player.position));
+
+    // CAS A : La case appartient à un autre joueur -> Payer Loyer
+    if (owner && owner.id !== player.id) {
+        const rentAmount = currentTile.rent || 0;
+        
+        // Transfert d'argent
+        player.balance -= rentAmount;
+        owner.balance += rentAmount;
+
+        // Notification globale
+        io.emit('game:notification', `💸 ${player.name} paie ${rentAmount}$ de loyer à ${owner.name} pour ${currentTile.name}`);
+        
+        // Mise à jour des soldes clients
+        io.emit('game:init_state', gameState.players);
+    }
+    
+    // CAS B : La case est libre et achetable -> Proposer l'achat
+    else if (!owner && currentTile.price !== null && player.balance >= currentTile.price) {
+        // On envoie un signal uniquement au joueur concerné pour activer son bouton "Acheter"
+        const socketId = player.id; // On suppose que id = socket.id
+        io.to(socketId).emit('game:allow_buy', {
+            tileIndex: currentTile.index,
+            price: currentTile.price,
+            name: currentTile.name
+        });
+    }
 }
 
 // Passer au tour suivant
@@ -94,6 +134,32 @@ export default (io, socket, prisma) => {
         performDiceRoll(io, player);
     });
 
+    // Action : Acheter
+    socket.on('action:buy', () => {
+        const player = gameState.players.find(p => p.id === socket.id);
+        if (!player) return;
+
+        const currentTile = boardTiles.find(t => t.index === player.position);
+        
+        // Vérifications de sécurité (anti-triche)
+        const owner = gameState.players.find(p => p.properties.includes(player.position));
+        if (owner) return; // Déjà à quelqu'un
+        if (!currentTile || !currentTile.price) return; // Pas achetable
+        if (player.balance < currentTile.price) return; // Pas assez d'argent
+
+        // Exécution de l'achat
+        player.balance -= currentTile.price;
+        player.properties.push(player.position);
+
+        io.emit('game:notification', `🏠 ${player.name} a acheté ${currentTile.name} pour ${currentTile.price}$ !`);
+        
+        // Mettre à jour tout le monde
+        io.emit('game:init_state', gameState.players);
+        
+        // Confirmer au client pour désactiver le bouton
+        socket.emit('game:buy_success');
+    });    
+
     // Action : Finir le tour manuellement
     socket.on('action:endTurn', () => {
         const player = gameState.players.find(p => p.id === socket.id);
@@ -106,14 +172,24 @@ export default (io, socket, prisma) => {
     });
 };
 
-export const startGame = (io, activePlayers) => {
+export const startGame = async (io, activePlayers, prismaClient) => { 
     console.log("🏁 Initialisation de la partie côté serveur...");
+
+    // Charger les infos statiques des cases (Prix/Loyer) depuis la DB
+    try {      
+        const { PrismaClient } = await import('@prisma/client');
+        const prisma = new PrismaClient();
+        boardTiles = await prisma.tile.findMany({ orderBy: { index: 'asc' } });
+        
+    } catch (e) {
+        console.error("Erreur chargement boardTiles:", e);
+    }
   
     gameState.players = activePlayers.map(p => ({
         ...p,
         position: 0,
         balance: 1500,
-        properties: []
+        properties: [] // Liste des index de propriétés possédées
     }));
   
     gameState.currentPlayerIndex = -1;
