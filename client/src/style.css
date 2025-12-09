@@ -29,3 +29,61 @@ a {
 a:hover {
   color: #535bf2;
 }
+
+
+/* --- Modal Carte --- */
+.card-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.card-modal {
+  width: 300px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  overflow: hidden;
+  text-align: center;
+  transform: scale(0.8);
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.card-header {
+  padding: 15px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.card-body {
+  padding: 30px 20px;
+  font-size: 1.1rem;
+  color: #333;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.4;
+}
+
+/* Couleurs spécifiques */
+.card-modal.chance .card-header {
+  background: #f97316; /* Orange Churros */
+  border-bottom: 5px solid #c2410c;
+}
+
+.card-modal.community .card-header {
+  background: #3b82f6; /* Bleu Foy */
+  border-bottom: 5px solid #1e40af;
+}
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { 
+  to { transform: scale(1); } 
+}

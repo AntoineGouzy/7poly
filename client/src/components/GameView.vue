@@ -22,6 +22,9 @@ const currentBuyOffer = ref(null); // Stocke l'info si on peut acheter
 // 'allPlayers' est la source de vérité pour les positions et les soldes
 const allPlayers = ref([])
 
+// Gère l'affichage de la carte
+const activeCard = ref(null);
+
 // Timer local pour l'affichage
 let timerInterval = null
 
@@ -131,6 +134,16 @@ onMounted(() => {
       actions.value.canBuy = false; 
     }
   })
+
+  // Ecoute pour l'affichage de la carte
+  socket.on('game:card_drawn', (cardData) => {
+      activeCard.value = cardData;
+      
+      // On cache la carte automatiquement après 4 secondes
+      setTimeout(() => {
+          activeCard.value = null;
+      }, 4000);
+  });
 })
 
 onUnmounted(() => {
@@ -229,6 +242,16 @@ function onEndTurn() {
       </div>
     </div>
 
+    <div v-if="activeCard" class="card-modal-overlay">
+        <div class="card-modal" :class="activeCard.type.toLowerCase()">
+            <div class="card-header">
+                {{ activeCard.type === 'CHANCE' ? '❓ CHURROS' : '📦 FOY' }}
+            </div>
+            <div class="card-body">
+                {{ activeCard.text }}
+            </div>
+        </div>
+    </div>
   </div>
 </template>
 

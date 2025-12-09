@@ -13,6 +13,36 @@ let boardTiles = [];
 
 const BOARD_SIZE = 40; 
 
+// --- DÉFINITION DES CARTES ---
+// Types d'actions : MONEY, MOVE, JAIL, MOVE_RELATIVE, GLOBAL_COLLECT
+const GAME_CARDS = {
+    CHANCE: [
+        { text: "Vous avez gagné le concours de maths : recevez 100 $", action: "MONEY", value: 100 },
+        { text: "Vos parents vous donnent 150 $ (boosted)", action: "MONEY", value: 150 },
+        { text: "Le partenariat avec LCL est super fructueux. La banque vous verse 50 $", action: "MONEY", value: 50 },
+        { text: "Payez la réinscription : 150 $", action: "MONEY", value: -150 },
+        { text: "La sécurité vous a attrapé en état d'ivresse : payez 20 $", action: "MONEY", value: -20 },
+        { text: "Vous vous faites prendre en train de doubler la queue du Crous : payez 15 $", action: "MONEY", value: -15 },
+        { text: "Hop ! Hop ! Hop ! Vous avez séché trop d'amphi : reculez de 3 cases", action: "MOVE_RELATIVE", value: -3 }, 
+        { text: "Oh non la noche vous a attrapé ! Allez au Bungalow (Prison) sans passer par l'accueil", action: "JAIL" }, 
+        { text: "Rendez-vous au portail le plus proche", action: "NEAREST_RAILROAD" }, 
+        { text: "La sonnerie retentit. Allez en B208", action: "MOVE_TO", value: 39 }
+    ],
+    COMMUNITY: [
+        { text: "Allez à l'accueil et touchez 200 $", action: "MOVE_TO", value: 0 }, 
+        { text: "Retournez dans l'obscurité de la As204", action: "MOVE_TO", value: 1 }, 
+        { text: "La noche vous baffe. Allez au Bungalow (Prison) sans passer par l'accueil", action: "JAIL" }, 
+        { text: "Tess s'est trompée dans les comptes : recevez 200 $", action: "MONEY", value: 200 },
+        { text: "Vous scannez avec votre Lydia perso : recevez 100 $", action: "MONEY", value: 100 },
+        { text: "La vente de chocolatine du Foy a été fructueuse. Recevez 50 $", action: "MONEY", value: 50 },
+        { text: "Vous mendiez au Foy. Chaque n7ien vous donne 10 $", action: "GLOBAL_COLLECT", value: 10 },
+        { text: "Vous avez gagné le concours de coinche : recevez 10 $", action: "MONEY", value: 10 }, 
+        { text: "Payez une tournée en soirée Foy : 50 $", action: "MONEY", value: -50 },
+        { text: "Votre caution a sauté : payez 50 $", action: "MONEY", value: -50 },
+        { text: "Courez au portail le plus proche (si vous passez l'accueil, touchez 200 $)", action: "NEAREST_RAILROAD" } 
+    ]
+};
+
 // Lancer les dés et déplacer le joueur)
 function performDiceRoll(io, player) {
     const die1 = Math.floor(Math.random() * 6) + 1;
@@ -36,11 +66,37 @@ function performDiceRoll(io, player) {
 }
 
 // Fonction pour gérer l'arrivée sur une case
-function handleLanding(io, player) {
+function handleLanding(io, player, isReplay = false) {
     const currentTile = boardTiles.find(t => t.index === player.position);
     if (!currentTile) return;
 
-    // 1. Chercher si la case appartient déjà à quelqu'un
+    console.log(`🛬 ${player.name} arrive sur ${currentTile.name} (${currentTile.type})`);
+
+    // GESTION DES CARTES (CHURROS / FOY)
+    if (['CHANCE', 'COMMUNITY'].includes(currentTile.type) && !isReplay) {
+        // Tirer une carte aléatoire
+        const deck = currentTile.type === 'CHANCE' ? GAME_CARDS.CHANCE : GAME_CARDS.COMMUNITY;
+        const card = deck[Math.floor(Math.random() * deck.length)];
+        const cardTypeName = currentTile.type === 'CHANCE' ? 'Churros' : 'Foy';
+
+        // Notification dans le journal de bord
+        io.emit('game:notification', `🃏 ${player.name} pioche une carte ${cardTypeName} : "${card.text}"`);
+
+        // Envoyer l'info au front (pop-up visuelle)
+        io.emit('game:card_drawn', {
+            playerId: player.id,
+            type: currentTile.type,
+            text: card.text
+        });
+
+        // Appliquer l'effet avec un petit délai pour la lecture
+        setTimeout(() => {
+            applyCardEffect(io, player, card);
+        }, 1500);
+        return; 
+    }
+
+    // Chercher si la case appartient déjà à quelqu'un
     const owner = gameState.players.find(p => p.properties.includes(player.position));
 
     // CAS A : La case appartient à un autre joueur -> Payer Loyer
@@ -68,6 +124,69 @@ function handleLanding(io, player) {
             name: currentTile.name
         });
     }
+}
+
+// Fonction pour traiter les effets des cartes
+function applyCardEffect(io, player, card) {
+    let msg = "";
+
+    switch (card.action) {
+        case "MONEY":
+            player.balance += card.value;
+            msg = card.value > 0 ? `💰 Gain de ${card.value}$` : `💸 Perte de ${Math.abs(card.value)}$`;
+            break;
+
+        case "GLOBAL_COLLECT":
+            let totalCollected = 0;
+            gameState.players.forEach(p => {
+                if (p.id !== player.id) {
+                    p.balance -= card.value;
+                    totalCollected += card.value;
+                }
+            });
+            player.balance += totalCollected;
+            msg = `💰 ${player.name} a reçu ${totalCollected}$ des autres joueurs !`;
+            break;
+
+        case "MOVE_RELATIVE":
+            const oldPos = player.position;
+            player.position = (player.position + card.value + BOARD_SIZE) % BOARD_SIZE;
+            io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
+            handleLanding(io, player, true); 
+            break;
+
+        case "MOVE_TO":
+            if (player.position > card.value && card.value !== 10) { 
+                player.balance += 200; 
+            }
+            player.position = card.value;
+            io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
+            handleLanding(io, player, true);
+            break;
+
+        case "JAIL":
+            player.position = 10;
+            io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
+            msg = "🚓 En route pour le bungalow !";
+            break;
+
+        case "NEAREST_RAILROAD":
+            const railroads = [5, 15, 25, 35];
+            let nextRail = railroads.find(r => r > player.position);
+            if (!nextRail) { 
+                nextRail = 5; 
+                player.balance += 200; 
+            }
+            player.position = nextRail;
+            io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
+            handleLanding(io, player, true);
+            break;
+    }
+
+    if(msg) io.emit('game:notification', msg);
+    
+    // Mise à jour finale des scores
+    io.emit('game:init_state', gameState.players);
 }
 
 // Passer au tour suivant
