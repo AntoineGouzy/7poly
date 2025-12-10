@@ -48,11 +48,40 @@ function performDiceRoll(io, player) {
     const die1 = Math.floor(Math.random() * 6) + 1;
     const die2 = Math.floor(Math.random() * 6) + 1;
     const total = die1 + die2;
+    const isDouble = (die1 === die2);
+
+    // Logique prison
+    if (player.inJail) {
+        // Cas 1 : Il fait un double -> Il sort gratuitement
+        if (isDouble) {
+            player.inJail = false;
+            player.jailTurns = 0;
+            io.emit('game:notification', `🔓 ${player.name} fait un double et s'échappe du Bungalow !`);
+        } 
+        // Cas 2 : Pas de double
+        else {
+            player.jailTurns++;
+            
+            // Si c'est son 3ème tour raté, il paye 50$ forcé et sort
+            if (player.jailTurns >= 3) {
+                player.balance -= 50;
+                player.inJail = false;
+                player.jailTurns = 0;
+                io.emit('game:notification', `👮 3 tours passés : ${player.name} paie 50$ et sort du Bungalow.`);
+            } else {
+                // Il reste en prison
+                io.emit('game:notification', `🔒 ${player.name} reste au Bungalow (Tour ${player.jailTurns}/3).`);
+                io.emit('game:moved', { playerId: player.id, newPosition: 10, diceResult: [die1, die2] });
+                gameState.hasRolled = true;
+                return 0; 
+            }
+        }
+    }
 
     const oldPosition = player.position;
     const newPosition = (oldPosition + total) % BOARD_SIZE;
 
-    // Détection du salaire (Passage par la case départ)'
+    // Détection du salaire
     if (newPosition < oldPosition) {
         const SALARY = 200;
         player.balance += SALARY;
@@ -60,11 +89,8 @@ function performDiceRoll(io, player) {
         io.emit('game:init_state', gameState.players);
     }
 
-    // Mise à jour de la position
     player.position = newPosition;
     gameState.hasRolled = true;
-
-    //console.log(`🎲 [AUTO/MANUEL] ${player.name} a fait ${total} et va case ${player.position}`);
 
     io.emit('game:moved', {
         playerId: player.id,
@@ -72,10 +98,19 @@ function performDiceRoll(io, player) {
         diceResult: [die1, die2]
     });
 
-    // Gestion de l'arrivée sur la case (Loyer / Achat / Cartes)
+    // Gestion arrivée (Loyer / Achat / Cartes)
     handleLanding(io, player, false, total);
 
-    return total; 
+    return total;
+}
+
+function sendToJail(io, player) {
+    player.position = 10;
+    player.inJail = true;
+    player.jailTurns = 0;
+    io.emit('game:moved', { playerId: player.id, newPosition: 10, diceResult: [] });
+    io.emit('game:notification', `🚓 ${player.name} est envoyé au Bungalow de la Noche !`);
+    io.emit('game:init_state', gameState.players);
 }
 
 // Fonction pour gérer l'arrivée sur une case
@@ -107,6 +142,10 @@ function handleLanding(io, player, isReplay = false, diceTotal = 0) {
             applyCardEffect(io, player, card);
         }, 1500);
         return; 
+    }
+    else if (currentTile.type === 'GO_TO_JAIL') {
+        sendToJail(io, player);
+        return;
     }
 
     // Chercher si la case appartient déjà à quelqu'un
@@ -198,9 +237,9 @@ function applyCardEffect(io, player, card) {
                 const targetPos = card.value;
     
                 if (targetPos === 10) {
-                    player.position = 10;
-                    msg = "🚓 En route pour le bungalow !";
-                } 
+                    sendToJail(io, player);
+                    msg = "";
+                }
                 else if (card.text.toLowerCase().includes("retournez") || card.text.toLowerCase().includes("reculez")) {
                      player.position = targetPos;
                 }
@@ -217,9 +256,7 @@ function applyCardEffect(io, player, card) {
                 break;
 
         case "JAIL":
-            player.position = 10;
-            io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
-            msg = "🚓 En route pour le bungalow !";
+            sendToJail(io, player);
             break;
 
         case "NEAREST_RAILROAD":
@@ -346,6 +383,25 @@ export default (io, socket, prisma) => {
         nextTurn(io);
         }
     });
+
+    // Action : Payer pour sortir de prison
+    socket.on('action:payJail', () => {
+        const player = gameState.players.find(p => p.id === socket.id);
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+
+        // Vérifs : C'est son tour, il est en prison, il n'a pas encore lancé
+        if (!player || player.id !== currentPlayer.id) return;
+        if (!player.inJail || gameState.hasRolled) return;
+        
+        if (player.balance >= 50) {
+            player.balance -= 50;
+            player.inJail = false;
+            player.jailTurns = 0;
+            
+            io.emit('game:notification', `💸 ${player.name} paie 50$ pour sortir du Bungalow.`);
+            io.emit('game:init_state', gameState.players);
+        }
+    });
 };
 
 export const startGame = async (io, activePlayers, prismaClient) => { 
@@ -365,7 +421,9 @@ export const startGame = async (io, activePlayers, prismaClient) => {
         ...p,
         position: 0,
         balance: 1500,
-        properties: [] // Liste des index de propriétés possédées
+        properties: [],
+        inJail: false,
+        jailTurns: 0
     }));
   
     gameState.currentPlayerIndex = -1;

@@ -163,6 +163,10 @@ function onBuy() {
   socket.emit('action:buy');
 }
 
+function onPayJail() {
+  socket.emit('action:payJail');
+}
+
 function onEndTurn() {
   socket.emit('action:endTurn')
   notifications.value.unshift("Fin du tour envoyée...")
@@ -226,6 +230,11 @@ function onEndTurn() {
       </div>
 
       <div class="actions-panel">
+        <button v-if="currentPlayer.inJail && !actions.canEndTurn" 
+                @click="onPayJail" 
+                class="action-btn pay-jail">
+          💸 Payer la Noche (50$)
+        </button>
         <button :disabled="!actions.canRoll" @click="onRoll" class="action-btn roll">
           🎲 Lancer les dés
         </button>

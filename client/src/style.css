@@ -31,7 +31,6 @@ a:hover {
 }
 
 
-/* --- Modal Carte --- */
 .card-modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
@@ -71,19 +70,26 @@ a:hover {
   line-height: 1.4;
 }
 
-/* Couleurs spécifiques */
 .card-modal.chance .card-header {
-  background: #f97316; /* Orange Churros */
+  background: #f97316; 
   border-bottom: 5px solid #c2410c;
 }
 
 .card-modal.community .card-header {
-  background: #3b82f6; /* Bleu Foy */
+  background: #3b82f6;
   border-bottom: 5px solid #1e40af;
 }
 
-/* Animations */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes popIn { 
   to { transform: scale(1); } 
+}
+
+.pay-jail {
+  background-color: #d97706;
+  color: white;
+}
+
+.pay-jail:hover {
+  background-color: #b45309;
 }
