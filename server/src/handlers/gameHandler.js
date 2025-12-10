@@ -43,13 +43,25 @@ const GAME_CARDS = {
     ]
 };
 
-// Lancer les dés et déplacer le joueur)
+// Lancer les dés et déplacer le joueur
 function performDiceRoll(io, player) {
     const die1 = Math.floor(Math.random() * 6) + 1;
     const die2 = Math.floor(Math.random() * 6) + 1;
     const total = die1 + die2;
 
-    player.position = (player.position + total) % BOARD_SIZE;
+    const oldPosition = player.position;
+    const newPosition = (oldPosition + total) % BOARD_SIZE;
+
+    // Détection du salaire (Passage par la case départ)'
+    if (newPosition < oldPosition) {
+        const SALARY = 200;
+        player.balance += SALARY;
+        io.emit('game:notification', `💰 ${player.name} passe par la case départ et reçoit ${SALARY} $`);
+        io.emit('game:init_state', gameState.players);
+    }
+
+    // Mise à jour de la position
+    player.position = newPosition;
     gameState.hasRolled = true;
 
     //console.log(`🎲 [AUTO/MANUEL] ${player.name} a fait ${total} et va case ${player.position}`);
@@ -60,19 +72,20 @@ function performDiceRoll(io, player) {
         diceResult: [die1, die2]
     });
 
-    handleLanding(io, player);
+    // Gestion de l'arrivée sur la case (Loyer / Achat / Cartes)
+    handleLanding(io, player, false, total);
 
-    return total; // On retourne le total pour vérifier des doubles plus tard (sortir de prison)
+    return total; 
 }
 
 // Fonction pour gérer l'arrivée sur une case
-function handleLanding(io, player, isReplay = false) {
+function handleLanding(io, player, isReplay = false, diceTotal = 0) {
     const currentTile = boardTiles.find(t => t.index === player.position);
     if (!currentTile) return;
 
     console.log(`🛬 ${player.name} arrive sur ${currentTile.name} (${currentTile.type})`);
 
-    // GESTION DES CARTES (CHURROS / FOY)
+    // Gestion des cartes (Churros / Foy)
     if (['CHANCE', 'COMMUNITY'].includes(currentTile.type) && !isReplay) {
         // Tirer une carte aléatoire
         const deck = currentTile.type === 'CHANCE' ? GAME_CARDS.CHANCE : GAME_CARDS.COMMUNITY;
@@ -101,19 +114,43 @@ function handleLanding(io, player, isReplay = false) {
 
     // CAS A : La case appartient à un autre joueur -> Payer Loyer
     if (owner && owner.id !== player.id) {
-        const rentAmount = currentTile.rent || 0;
+        let rentAmount = currentTile.rent || 0;
+
+        // Gestion des portails
+        if (currentTile.type === 'RAILROAD') {
+            const nbRailroads = owner.properties.reduce((count, propIndex) => {
+                const tile = boardTiles.find(t => t.index === propIndex);
+                return (tile && tile.type === 'RAILROAD') ? count + 1 : count;
+            }, 0);
+            if (nbRailroads > 0) rentAmount = 25 * nbRailroads;
+        }
+
+        // Gestion de Resto'U et Danu
+        else if (currentTile.type === 'UTILITY') {
+            // Compter combien de services possède le propriétaire
+            const nbUtilities = owner.properties.reduce((count, propIndex) => {
+                const tile = boardTiles.find(t => t.index === propIndex);
+                return (tile && tile.type === 'UTILITY') ? count + 1 : count;
+            }, 0);
+
+            // Calculer le multiplicateur (x4 ou x10)
+            const multiplier = (nbUtilities === 2) ? 10 : 4;
+            
+            // Calcul final
+            rentAmount = diceTotal * multiplier;
+            
+            // Petite notif spécifique pour expliquer le calcul aux joueurs
+            io.emit('game:notification', `💡 Loyer variable (Dés : ${diceTotal} x ${multiplier})`);
+        }
         
         // Transfert d'argent
         player.balance -= rentAmount;
         owner.balance += rentAmount;
 
-        // Notification globale
         io.emit('game:notification', `💸 ${player.name} paie ${rentAmount}$ de loyer à ${owner.name} pour ${currentTile.name}`);
-        
-        // Mise à jour des soldes clients
         io.emit('game:init_state', gameState.players);
     }
-    
+
     // CAS B : La case est libre et achetable -> Proposer l'achat
     else if (!owner && currentTile.price !== null && player.balance >= currentTile.price) {
         // On envoie un signal uniquement au joueur concerné pour activer son bouton "Acheter"
@@ -129,6 +166,7 @@ function handleLanding(io, player, isReplay = false) {
 // Fonction pour traiter les effets des cartes
 function applyCardEffect(io, player, card) {
     let msg = "";
+    const SALARY = 200;
 
     switch (card.action) {
         case "MONEY":
@@ -149,20 +187,34 @@ function applyCardEffect(io, player, card) {
             break;
 
         case "MOVE_RELATIVE":
-            const oldPos = player.position;
-            player.position = (player.position + card.value + BOARD_SIZE) % BOARD_SIZE;
+            const currentPosRel = player.position;
+            player.position = (currentPosRel + card.value + BOARD_SIZE) % BOARD_SIZE;            
             io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
             handleLanding(io, player, true); 
             break;
 
-        case "MOVE_TO":
-            if (player.position > card.value && card.value !== 10) { 
-                player.balance += 200; 
-            }
-            player.position = card.value;
-            io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
-            handleLanding(io, player, true);
-            break;
+            case "MOVE_TO":
+                const currentPosTo = player.position;
+                const targetPos = card.value;
+    
+                if (targetPos === 10) {
+                    player.position = 10;
+                    msg = "🚓 En route pour le bungalow !";
+                } 
+                else if (card.text.toLowerCase().includes("retournez") || card.text.toLowerCase().includes("reculez")) {
+                     player.position = targetPos;
+                }
+                else {
+                    if (targetPos < currentPosTo) {
+                        player.balance += SALARY;
+                        msg = `💰 ${player.name} passe par la case départ et reçoit ${SALARY} $`;
+                    }
+                    player.position = targetPos;
+                }
+    
+                io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
+                if (targetPos !== 10) handleLanding(io, player, true);
+                break;
 
         case "JAIL":
             player.position = 10;
@@ -172,18 +224,23 @@ function applyCardEffect(io, player, card) {
 
         case "NEAREST_RAILROAD":
             const railroads = [5, 15, 25, 35];
-            let nextRail = railroads.find(r => r > player.position);
-            if (!nextRail) { 
+            const currentPosRail = player.position;
+            
+            let nextRail = railroads.find(r => r > currentPosRail);
+            
+            if (nextRail === undefined) { 
                 nextRail = 5; 
-                player.balance += 200; 
+                player.balance += SALARY; 
+                msg = `💰 ${player.name} passe par la case départ pour rejoindre le portail !`;
             }
+            
             player.position = nextRail;
             io.emit('game:moved', { playerId: player.id, newPosition: player.position, diceResult: [] });
             handleLanding(io, player, true);
             break;
     }
 
-    if(msg) io.emit('game:notification', msg);
+    if(msg && !msg.includes("Bungalow")) io.emit('game:notification', msg);
     
     // Mise à jour finale des scores
     io.emit('game:init_state', gameState.players);
