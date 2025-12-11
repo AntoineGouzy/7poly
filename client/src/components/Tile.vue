@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 const props = defineProps([
-  'index', 'name', 'price', 'color', 'type', 'orientation', 'image'
+  'index', 'name', 'price', 'color', 'type', 'orientation', 'image', 'owner'
 ])
 
 // Détermine si c'est un coin
@@ -38,6 +38,11 @@ function cornerAngle(){
     
     <div class="tile" :class="{ corner: isCorner, 'is-north': orientation === 'NORTH'}">
       
+      <div v-if="owner && !isCorner" 
+           class="owner-badge" 
+           :style="{ backgroundColor: owner.color }">
+        {{ owner.name.charAt(0).toUpperCase() }}
+      </div>
       <template v-if="!isCorner">
         <div v-if="color" class="color-bar" :style="{ backgroundColor: color || '#ccc' }"></div>
 
@@ -78,49 +83,45 @@ function cornerAngle(){
   width: 100%;
   height: 100%;
   background: #fff;
-  border: 1px solid #222; /* Bordure noire plus fidèle au Monopoly */
+  border: 1px solid #222;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column; /* Tout s'empile verticalement */
+  flex-direction: column; 
   position: relative;
   overflow: hidden;
-  font-size: 0.65rem; /* Ajuste selon la taille de l'écran */
+  font-size: 0.65rem; 
 }
 
 .tile.is-north {
   flex-direction: column-reverse;
 }
 
-/* 2. On corrige la bordure de la bande de couleur */
-/* Comme la bande est maintenant en bas, la ligne noire doit être au-dessus d'elle */
 .tile.is-north .color-bar {
-  border-bottom: none;       /* On enlève la bordure du bas */
-  border-top: 1px solid #222; /* On la met en haut */
+  border-bottom: none;      
+  border-top: 1px solid #222; 
 }
 
-/* 3. Ajustement des marges internes pour l'équilibre */
 .tile.is-north .body {
-  /* Inversement de l'espacement si nécessaire (souvent flex-direction suffit) */
   justify-content: space-between; 
 }
 
 /* --- Styles pour les Propriétés Standard --- */
 
-/* 1. La bande de couleur */
+/* La bande de couleur */
 .color-bar {
-  height: 22%; /* La bande prend environ 1/5 de la hauteur */
+  height: 22%; 
   width: 100%;
   border-bottom: 1px solid #222;
   flex-shrink: 0;
 }
 
-/* 2. Le corps (Nom, Icone, Prix) */
+/* Le corps (Nom, Icone, Prix) */
 .body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* Pousse le prix tout en bas */
-  align-items: center;            /* Centre tout horizontalement */
+  justify-content: space-between; 
+  align-items: center;            
   padding: 4px 2px;
   text-align: center;
 }
@@ -142,7 +143,7 @@ function cornerAngle(){
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  margin: auto 0; /* Centre verticalement si possible */
+  margin: auto 0; 
   opacity: 0.8;
 }
 
@@ -153,7 +154,7 @@ function cornerAngle(){
 
 /* ——— COINS ——— */
 .tile.corner {
-  background: #fdfdfd; /* Fond légèrement différent pour les coins */
+  background: #fdfdfd; 
 }
 
 .tile.corner .img-corner {
@@ -161,20 +162,17 @@ function cornerAngle(){
   height: 100%;
   background-size: cover;
   background-position: center;
-  opacity: 0.6; /* Rend l'image plus subtile pour que le texte ressorte */
+  opacity: 0.6; 
 }
 
 .diag {
   position: absolute;
   top: 50%;
   left: 50%;
-  /* On limite la largeur à 130% (un peu moins que la diagonale mathématique de 141%)
-     pour éviter que les coins du texte ne sortent du carré */
   width: 130%; 
   text-align: center;
-  pointer-events: none; /* Empêche le texte de bloquer les clics */
+  pointer-events: none; 
   
-  /* Flexbox pour bien centrer le contenu multiligne */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -182,19 +180,54 @@ function cornerAngle(){
 
 .diag-name {
   font-weight: 900;
-  font-size: 0.55rem; /* Police plus petite pour les coins */
+  font-size: 0.55rem; 
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  line-height: 1.1;   /* Interligne serré pour le texte sur plusieurs lignes */
+  line-height: 1.1;  
   
   background: rgba(255, 255, 255, 0.85);
   padding: 3px 6px;
   border-radius: 4px;
   box-shadow: 0 0 2px rgba(0,0,0,0.2);
   
-  /* Force le texte à aller à la ligne si trop long */
   white-space: pre-wrap; 
   word-wrap: break-word;
-  max-width: 90%; /* Marge de sécurité interne */
+  max-width: 90%;
+}
+
+/* Style du badge propriétaire */
+.owner-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px; 
+  height: 20px; 
+  border-radius: 50%;
+  border: 1px solid white; 
+  color: white;
+  font-weight: 900;
+  font-size: 0.7rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  z-index: 50; 
+  
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Pour les cases du haut (NORTH), on inverse la position car le sens est inversé */
+.tile.is-north .owner-badge {
+  top: auto;
+  bottom: 2px;
+  right: 2px; 
+}
+
+.tile-wrapper[style*="rotate(90deg)"] .owner-badge {
+}
+
+@keyframes popIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 </style>

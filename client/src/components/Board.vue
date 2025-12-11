@@ -43,6 +43,14 @@ function getPawnOffset(playerIndex) {
   ];
   return offsets[playerIndex % 4];
 }
+
+// Fonction pour trouver le propriétaire d'une case
+function getOwner(tileIndex) {
+  if (!props.players) return null;
+  // On s'assure de comparer des nombres avec des nombres
+  return props.players.find(p => p.properties.includes(Number(tileIndex)));
+}
+
 </script>
 
 <template>
@@ -50,17 +58,17 @@ function getPawnOffset(playerIndex) {
     <div class="board" v-if="tiles.length">
       <Tile
         v-for="t in tiles"
-        :key="t.id"
-        :index="t.index"
-        :name="t.name"
-        :price="t.price"
-        :color="t.color"
-        :orientation="t.orientation"
-        :image="t.image"
-        :style="{ 
-          gridRow: gridPos(t.index).row,
-          gridColumn: gridPos(t.index).col 
-        }"
+          :key="t.index"  :index="t.index"
+          :name="t.name"
+          :price="t.price"
+          :color="t.color"
+          :orientation="t.orientation"
+          :image="t.image"
+          :owner="getOwner(t.index)"
+          :style="{ 
+            gridRow: gridPos(t.index).row,
+            gridColumn: gridPos(t.index).col 
+          }"
       />
 
       <div class="center">
@@ -99,7 +107,7 @@ function getPawnOffset(playerIndex) {
 }
 
 .board {
-  width: min(100vmin, 1200px); /* Plateau large et carré */
+  width: min(100vmin, 1200px); 
   aspect-ratio: 1 / 1;
 
   display: grid;
@@ -122,7 +130,7 @@ function getPawnOffset(playerIndex) {
   display: grid;
   grid-template-columns: repeat(11, 1fr);
   grid-template-rows: repeat(11, 1fr);
-  pointer-events: none; /* Laisse passer les clics vers les cases */
+  pointer-events: none; 
   z-index: 10;
 }
 
@@ -138,22 +146,19 @@ function getPawnOffset(playerIndex) {
   color: white;
   font-weight: bold;
   font-size: 0.7rem;
-  margin: auto; /* Centre dans la cellule de la grille */
+  margin: auto;
   
-  /* Animation fluide lors du changement de grid-row/col */
   transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
   position: relative;
   z-index: 20;
 }
 
-/* Zone centrale (vide) */
-/* Zone centrale (Mise à jour) */
+/* Zone centrale */
 .center {
   grid-row: 2 / span 9;
   grid-column: 2 / span 9;
-  /* Couleur de fond vert menthe classique du Monopoly */
   background: #cde6d0; 
-  position: relative; /* Indispensable pour placer les cartes en absolute */
+  position: relative;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -161,7 +166,6 @@ function getPawnOffset(playerIndex) {
 /* --- Styles des piles de cartes --- */
 .deck-slot {
   position: absolute;
-  /* On réduit la taille (avant: width 35%, height 25%) */
   width: 25%;
   height: 18%;
   display: flex;
@@ -169,16 +173,15 @@ function getPawnOffset(playerIndex) {
   align-items: center;
 }
 
-/* Positionnement : on les écarte un peu plus vers les coins pour l'équilibre */
 .community-chest {
-  top: 12%;   /* Était 10% */
-  left: 12%;  /* Était 10% */
+  top: 12%;  
+  left: 12%; 
   transform: rotate(135deg);
 }
 
 .chance {
-  bottom: 12%; /* Était 10% */
-  right: 12%;  /* Était 10% */
+  bottom: 12%;
+  right: 12%; 
   transform: rotate(-45deg);
 }
 
@@ -186,12 +189,12 @@ function getPawnOffset(playerIndex) {
   width: 100%;
   height: 100%;
   border: 2px dashed #88a;
-  border-radius: 6px; /* Bordure un peu moins arrondie vu la taille réduite */
+  border-radius: 6px; 
   position: relative;
   background: rgba(255,255,255,0.3);
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly; /* Mieux réparti que space-between */
+  justify-content: space-evenly;
   padding: 4px;
   box-sizing: border-box;
 }
@@ -199,16 +202,13 @@ function getPawnOffset(playerIndex) {
 .label {
   text-align: center;
   font-weight: bold;
-  /* Police réduite pour tenir dans le cadre (avant: 0.8rem) */
   font-size: 0.65rem; 
   text-transform: uppercase;
   color: #333;
   line-height: 1.1;
 }
 
-/* Fausses cartes / Icones réduites */
 .icon-box {
-  /* Dimensions réduites (avant: 40px/50px) */
   width: 28px;
   height: 36px;
   margin: 0 auto;
@@ -218,40 +218,37 @@ function getPawnOffset(playerIndex) {
   justify-content: center;
   align-items: center;
   font-weight: 900;
-  font-size: 1.1rem; /* Symbole ? plus petit */
+  font-size: 1.1rem; 
   box-shadow: 1px 1px 0 rgba(0,0,0,0.2);
 }
 
 .blue-icon {
-  background: #3b8edb; /* Bleu Caisse de com */
+  background: #3b8edb; 
 }
 
 .orange-icon {
-  background: #ff6600; /* Orange Chance */
+  background: #ff6600;
   color: #fff;
 }
 
-/* Le conteneur place le logo au centre et le fait pivoter */
 .logo-container {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-45deg);
   
-  width: 50%; /* Ajuste cette valeur si le logo est trop gros/petit */
+  width: 50%; 
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2; /* S'assure qu'il est au-dessus du fond */
-  pointer-events: none; /* Permet de cliquer "à travers" le logo si besoin */
+  z-index: 2; 
+  pointer-events: none; 
 }
 
-/* L'image s'adapte à son conteneur */
 .img-logo {
   width: 100%;
-  height: auto; /* Garde les proportions */
+  height: auto; 
   display: block;
-  /* Optionnel : ajoute une petite ombre portée pour du relief */
   filter: drop-shadow(3px 3px 5px rgba(0,0,0,0.3));
 }
 
