@@ -143,8 +143,17 @@ function handleLanding(io, player, isReplay = false, diceTotal = 0) {
         }, 1500);
         return; 
     }
+    // Gestion de la prison
     else if (currentTile.type === 'GO_TO_JAIL') {
         sendToJail(io, player);
+        return;
+    }
+    // Gestion des taxes (CVEC / GALA)
+    else if (currentTile.type === 'TAX') {
+        const taxAmount = currentTile.price;
+        player.balance -= taxAmount;
+        io.emit('game:notification', `💸 C'est l'heure de payer ! ${player.name} règle ${currentTile.name} : -${taxAmount}$`);        
+        io.emit('game:init_state', gameState.players);        
         return;
     }
 
