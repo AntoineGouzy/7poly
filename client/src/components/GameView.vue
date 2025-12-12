@@ -239,7 +239,7 @@ function onEndTurn() {
     <div v-if="activeCard" class="card-modal-overlay">
         <div class="card-modal" :class="activeCard.type.toLowerCase()">
             <div class="card-header">
-                {{ activeCard.type === 'CHANCE' ? '❓ CHURROS' : '📦 FOY' }}
+                {{ activeCard.type === 'CHANCE' ? 'CHURROS' : 'FOY' }}
             </div>
             <div class="card-body">
                 {{ activeCard.text }}

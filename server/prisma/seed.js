@@ -29,10 +29,10 @@ async function main() {
 
     // --- Haut (north) ---
     { index: 20, name: "La CAF", type: "FREE_PARKING", price: null, rent: null, color: null, image: "/tiles/caf.jpg", orientation: "CORNER_NE" },
-    { index: 21, name: "B0XX (Climatisé)", type: "PROPERTY", price: 220, rent: 18, color: "red", image: "/tiles/b0xx.jpg", orientation: "NORTH" }, // [cite: 1]
+    { index: 21, name: "B006", type: "PROPERTY", price: 220, rent: 18, color: "red", image: "/tiles/b0xx.jpg", orientation: "NORTH" }, // [cite: 1]
     { index: 22, name: "Churros", type: "CHANCE", price: null, rent: null, color: null, image: "/tiles/churros.jpg", orientation: "NORTH" },
-    { index: 23, name: "B0XX (Climatisé)", type: "PROPERTY", price: 220, rent: 18, color: "red", image: "/tiles/b0xx2.jpg", orientation: "NORTH" }, // [cite: 1]
-    { index: 24, name: "B1XX (chaises styles)", type: "PROPERTY", price: 240, rent: 20, color: "red", image: "/tiles/b1xx.jpg", orientation: "NORTH" }, // [cite: 1]
+    { index: 23, name: "B007", type: "PROPERTY", price: 220, rent: 18, color: "red", image: "/tiles/b0xx2.jpg", orientation: "NORTH" }, // [cite: 1]
+    { index: 24, name: "B123", type: "PROPERTY", price: 240, rent: 20, color: "red", image: "/tiles/b1xx.jpg", orientation: "NORTH" }, // [cite: 1]
     { index: 25, name: "Portail Vélo", type: "RAILROAD", price: 200, rent: 25, color: "black", image: "/tiles/portail_velo.jpg", orientation: "NORTH" },
     { index: 26, name: "Local TVn7", type: "PROPERTY", price: 260, rent: 22, color: "yellow", image: "/tiles/tvn7.jpg", orientation: "NORTH" }, // [cite: 2]
     { index: 27, name: "Local CAn7", type: "PROPERTY", price: 260, rent: 22, color: "yellow", image: "/tiles/can7.jpg", orientation: "NORTH" }, // [cite: 2]
